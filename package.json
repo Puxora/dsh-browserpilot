@@ -1,6 +1,6 @@
 {
   "name": "@puxora/dsh-browserpilot",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "DeepSeek Harness bridge and settings page for BrowserPilot.",
   "license": "MIT",
   "type": "module",
