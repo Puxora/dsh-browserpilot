@@ -117,6 +117,22 @@ pnpm dsh web
 npx -y @puxora/browserpilot mcp
 ```
 
+### 6. 卸载 BrowserPilot 与 DSH 集成
+
+DSH 插件通过 `npx` 启动 BrowserPilot MCP。若只卸载 BrowserPilot npm 包，DSH 插件会保留但显示为未连接；若只移除 DSH 插件，Chrome 的 Native Messaging 配置和桥接文件仍会保留。因此请按以下顺序清理：
+
+1. 停止 DSH，并通过当前安装环境的插件管理功能禁用或移除 `@puxora/dsh-browserpilot`；
+2. 在安装 BrowserPilot 的终端执行：
+
+   ```bash
+   browserpilot uninstall
+   npm uninstall -g @puxora/browserpilot
+   ```
+
+3. 在 Chrome 打开 `chrome://extensions`，手动移除 BrowserPilot 扩展。
+
+`browserpilot uninstall` 会停止 daemon，并清理 BrowserPilot 创建的 Native Messaging manifest、Chrome 注册表项和桥接文件；它默认保留 `~/.browserpilot` 下的配置、Token、任务和日志。仅在确认不再需要这些本地数据时，才执行 `browserpilot uninstall --purge`。
+
 ## DSH 设置与权限
 
 在 **设置 → BrowserPilot** 中可配置以下策略：
