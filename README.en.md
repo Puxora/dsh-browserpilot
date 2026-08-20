@@ -117,6 +117,22 @@ The plugin creates its stdio MCP connection with:
 npx -y @puxora/browserpilot mcp
 ```
 
+### 6. Uninstall BrowserPilot and the DSH integration
+
+The DSH plugin starts BrowserPilot MCP through `npx`. Removing only the BrowserPilot npm package leaves the DSH plugin installed but disconnected; removing only the DSH plugin leaves Chrome Native Messaging configuration and bridge files behind. Clean up in this order:
+
+1. Stop DSH, then disable or remove `@puxora/dsh-browserpilot` using the plugin management flow of the environment where it was installed.
+2. In the terminal where BrowserPilot is installed, run:
+
+   ```bash
+   browserpilot uninstall
+   npm uninstall -g @puxora/browserpilot
+   ```
+
+3. Open `chrome://extensions` and remove the BrowserPilot extension manually.
+
+`browserpilot uninstall` stops the daemon and removes BrowserPilot-created Native Messaging manifests, Chrome registry entries, and bridge files. It retains configuration, Tokens, tasks, and logs under `~/.browserpilot` by default. Run `browserpilot uninstall --purge` only when you have confirmed that this local data is no longer needed.
+
 ## DSH settings and permissions
 
 Configure these options in **Settings → BrowserPilot**:
