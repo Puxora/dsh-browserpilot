@@ -1,77 +1,189 @@
-# @puxora/dsh-browserpilot
+# BrowserPilot for DeepSeek Harness
 
-将 [BrowserPilot](https://github.com/Puxora/BrowserPilot) 的本机 Chrome 自动化能力接入 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)。
+[English](README.en.md) · [BrowserPilot](https://github.com/Puxora/BrowserPilot) · [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 
-它是一个独立的 DSH 双端插件：Host 端启动 BrowserPilot 的标准输入输出 MCP 服务并把工具注册到 DSH；Web 端在设置对话框添加 **BrowserPilot** 侧栏项（同时提供“插件”页配置卡兼容路径）。
+> 在 DeepSeek Harness（DSH）中安全地使用本机 Chrome，并将最终网页确认保留在 BrowserPilot 浏览器扩展中。
+
+`@puxora/dsh-browserpilot` 是 BrowserPilot 的独立 DSH 双端插件。Host 端将 BrowserPilot MCP 工具提供给 Agent；Web 端提供专属设置入口、权限策略和管理面板按钮。
+
+## 目录
+
+- [核心能力](#核心能力)
+- [前置条件](#前置条件)
+- [完整使用教程](#完整使用教程)
+- [DSH 设置与权限](#dsh-设置与权限)
+- [管理面板](#管理面板)
+- [工作原理](#工作原理)
+- [常见问题](#常见问题)
+- [开发与测试](#开发与测试)
+- [发布与许可证](#发布与许可证)
+
+## 核心能力
+
+| 能力 | 说明 |
+| --- | --- |
+| 本机 Chrome 控制 | 让 DSH Agent 通过 BrowserPilot 操作用户本机 Chrome。 |
+| 分级权限 | 分别管控只读、网页交互和敏感操作。 |
+| 本地最终确认 | 需确认的网页操作仍由 BrowserPilot Chrome 扩展完成。 |
+| 连接诊断 | 使用 `browserpilot_status` 查询 MCP 状态与已注册工具数量。 |
+| 管理面板入口 | 从 DSH 设置直接打开 BrowserPilot 本地后台。 |
 
 ## 前置条件
 
 - Node.js 18 或更高版本；
-- 已完成 BrowserPilot 的安装与 Chrome 扩展连接；
-- DeepSeek Harness `0.1.0-rc.7` 或兼容版本。
+- 可正常运行的 DeepSeek Harness Web profile；
+- Google Chrome；
+- 对当前 Chrome 用户安装扩展的权限。
 
-BrowserPilot 本身负责本机浏览器连接、标签页占用及网页交互确认；本插件不会保存它的令牌、Cookie 或浏览器凭据。
+BrowserPilot 负责浏览器连接、标签页占用、令牌与网页确认。本插件不会把令牌、Cookie 或浏览器凭据保存到 DSH。
 
-## 本地开发安装
+## 完整使用教程
 
-在 DSH Web profile 所在项目中安装此包，随后重新启动 DSH Web：
+### 1. 安装 BrowserPilot 并注册本地桥接
+
+在 PowerShell 或终端中执行：
 
 ```bash
-pnpm add github:Puxora/dsh-browserpilot
-npx @deepseek-ai/dsh web
+npm install -g @puxora/browserpilot
+browserpilot install
 ```
 
-`cordis.patch.yml` 会自动插入 Host 插件 entry。开发阶段也可以将这个仓库通过 `file:` 依赖安装到 DSH profile。
+`browserpilot install` 会注册当前 Windows 用户的 Chrome Native Messaging Host。请保存命令输出的 `chrome-extension` 目录路径，下一步需要选择该目录。
 
-默认会执行：
+### 2. 安装 BrowserPilot Chrome 扩展
+
+1. 在 Chrome 打开 `chrome://extensions`；
+2. 开启右上角的 **开发者模式**；
+3. 点击 **加载已解压的扩展程序**；
+4. 选择上一步 `browserpilot install` 输出的 `chrome-extension` 目录；
+5. 将 BrowserPilot 扩展固定到工具栏并打开它，确认状态显示为已连接。
+
+> 此步骤不可省略。DSH 插件只提供 MCP 接入与权限控制，真实 Chrome 标签页由 BrowserPilot 扩展连接和操作。
+
+### 3. 启动并检查 BrowserPilot
+
+```bash
+browserpilot start
+browserpilot status
+```
+
+默认管理后台为 [http://127.0.0.1:9876/](http://127.0.0.1:9876/)。首次在本机浏览器打开时会创建仅限 loopback 的认证 Cookie。
+
+若需要查看实时日志，可使用：
+
+```bash
+browserpilot start --foreground
+```
+
+### 4. 安装 DSH 插件
+
+#### 正式安装（npm 发布后）
+
+在可使用 `dsh` 命令的环境执行：
+
+```bash
+dsh plugin --profile web add @puxora/dsh-browserpilot@latest
+dsh web
+```
+
+在 DeepSeek Harness 源码目录中运行时，请使用：
+
+```bash
+pnpm dsh plugin --profile web add @puxora/dsh-browserpilot@latest
+pnpm dsh web
+```
+
+> `@latest` 在 npm 公网发布后可用。发布前请采用下方的本地开发安装方式。
+
+#### 本地开发安装
+
+```bash
+pnpm dsh plugin --profile web add file:G:/github/dsh-browserpilot
+pnpm dsh web
+```
+
+将示例路径替换为本地仓库路径。修改插件代码后，需要重新安装该 `file:` 依赖、重启 DSH 并刷新网页，才能加载新版本。
+
+### 5. 在 DSH 中验证连接
+
+1. 打开 **设置 → BrowserPilot**；
+2. 确认 **启用浏览器工具** 已开启；
+3. 在聊天中调用 `browserpilot_status`；
+4. 当状态为 `connected` 时，即可使用以 `mcp__browserpilot__` 开头的浏览器工具。
+
+插件默认通过下列标准输入输出 MCP 命令连接 BrowserPilot：
 
 ```bash
 npx -y @puxora/browserpilot mcp
 ```
 
-如需替换 BrowserPilot 的启动方式，可在 DSH 的 `cordis.yml` 中覆盖此 entry 的 `config`：
+## DSH 设置与权限
 
-```yaml
-- id: browserpilot
-  name: '@puxora/dsh-browserpilot'
-  config:
-    command: npx
-    args: ['-y', '@puxora/browserpilot', 'mcp']
-    connectTimeoutMs: 12000
-    toolCallTimeoutMs: 60000
+在 **设置 → BrowserPilot** 中可配置以下策略：
+
+| 类别 | 默认值 | 作用范围 |
+| --- | --- | --- |
+| 启用浏览器工具 | 开启 | 关闭后，DSH 不会调用任何 BrowserPilot 工具。 |
+| 只读操作 | 允许 | 标签页、页面状态、DOM 观察和截图。 |
+| 网页交互 | 由 BrowserPilot 确认 | 导航、点击、输入、按键、滚动和选择。 |
+| 敏感操作 | 禁止 | 上传、下载、脚本、Cookie 与凭据相关操作。 |
+
+「由 BrowserPilot 确认」不会绕过安全流程：最终授权仍由本机 BrowserPilot 扩展完成。关闭总开关或将类别设置为「禁止」时，DSH 会在 MCP 调用前阻断请求。
+
+## 管理面板
+
+设置页底部的 **打开管理面板** 会在新标签页打开：
+
+```text
+http://127.0.0.1:9876/
 ```
 
-不要在这里填写访问令牌；令牌应继续由 BrowserPilot 自己的安全配置管理。
+该面板属于 BrowserPilot，可查看连接、任务、日志、审批和浏览器策略。无法访问时，请确认 BrowserPilot daemon 正在运行，且未更改默认端口。
 
-## 接入与启动行为
+## 工作原理
 
-DSH 加载插件时只完成设置注册和 `browserpilot_status` 工具注册；BrowserPilot MCP 的启动会被放到下一轮事件循环中执行，因此不会等待 `npx`、MCP 握手或工具列表读取后才绑定 DSH Web 服务。
+```text
+DSH Agent
+   │
+   ├── BrowserPilot DSH Host 插件 ── stdio MCP ── BrowserPilot daemon
+   │                                               │
+   │                                               └── Chrome 扩展 ── Chrome 标签页
+   │
+   └── BrowserPilot DSH Web 设置页 ── 权限校验 / 管理面板入口
+```
 
-后台连接通过标准输入输出协议执行三步：启动 `@puxora/browserpilot mcp`、MCP 握手、读取工具列表。成功后才把工具以 `mcp__browserpilot__` 前缀注册到 DSH。连接中的重复请求会复用同一个任务；握手或工具列表在 `connectTimeoutMs`（默认 12 秒）内没有完成时，会关闭子连接并保留可诊断的失败状态。单次浏览器工具调用另受 `toolCallTimeoutMs`（默认 60 秒）限制。
+DSH 加载时，插件立即注册设置页与 `browserpilot_status`；随后才在后台启动 MCP、握手并读取工具列表。因此 DSH Web 不会等待 `npx`、daemon 启动或 MCP 握手完成才开始监听。连接握手默认超时为 12 秒，单次工具调用默认超时为 60 秒。
 
-## 设置与安全策略
+## 常见问题
 
-在 DSH 的“设置 → BrowserPilot”中可控制三类工具：
+### Agent 看不到 BrowserPilot 工具
 
-| 类别 | 默认值 | 范围 |
-| --- | --- | --- |
-| 只读操作 | 允许 | 标签页、页面状态、DOM 观察、截图 |
-| 网页交互 | 由 BrowserPilot 询问 | 导航、点击、输入、滚动、选择 |
-| 敏感操作 | 禁止 | 上传、下载、脚本、Cookie/凭据相关操作 |
+先调用 `browserpilot_status`。若状态不是 `connected`，请检查：BrowserPilot 是否已安装、Chrome 扩展是否显示已连接，以及下列命令能否在本机运行：
 
-“由 BrowserPilot 询问”并不绕过确认：最终授权仍由 BrowserPilot 的本机浏览器扩展完成。关闭总开关或将类别设为“禁止”时，DSH 会在 MCP 调用前直接阻断。
+```bash
+npx -y @puxora/browserpilot mcp
+```
 
-## 工具命名和诊断
+### 管理面板无法打开
 
-BrowserPilot MCP 工具以 `mcp__browserpilot__` 为前缀注册，避免与其他 DSH/MCP 浏览器工具冲突。例如 `browser_list_tabs` 会呈现为 `mcp__browserpilot__browser_list_tabs`。
+检查 [http://127.0.0.1:9876/](http://127.0.0.1:9876/) 是否可访问。daemon 未启动或使用了自定义端口时，面板不会显示。
 
-在聊天中调用 `browserpilot_status` 可以检查连接状态，并在断开时尝试重连。
+### 设置页仍显示旧版本
 
-## 发布准备
+本地 `file:` 依赖可能被包管理器缓存。重新安装 profile 依赖，重启 `dsh web`，再刷新浏览器。
 
-发布到 `Puxora/dsh-browserpilot` 后，建议：
+## 开发与测试
 
-1. 打上语义化版本标签并发布 npm 包；
-2. 在 GitHub 仓库添加 `dsh-plugin` topic；
-3. 在 README 中保留与 DSH、BrowserPilot 的版本兼容矩阵；
-4. 以 DSH 社区当时公布的渠道提交插件信息。DeepSeek Harness 仍处于开发预览阶段，发布前应重新核对其最新的插件市场规则。
+```bash
+npm install
+npm run check
+npm test
+```
+
+测试覆盖后台连接延迟、连接超时、设置规范化、权限拦截、工具注册和状态输出。
+
+## 发布与许可证
+
+npm 包发布后，用户可使用 `dsh plugin --profile web add @puxora/dsh-browserpilot@latest` 安装。发布前请确认版本号、npm scope 权限、DSH 兼容性和 BrowserPilot 的端到端联调结果。
+
+本项目采用 [MIT License](LICENSE)。
