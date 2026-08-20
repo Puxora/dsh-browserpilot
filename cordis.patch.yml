@@ -1,0 +1,3 @@
+- insert:
+    - id: browserpilot
+      name: '@puxora/dsh-browserpilot'

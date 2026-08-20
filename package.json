@@ -1,0 +1,61 @@
+{
+  "name": "@puxora/dsh-browserpilot",
+  "version": "0.1.4",
+  "description": "DeepSeek Harness bridge and settings page for BrowserPilot.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "src",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "check": "node --check index.js && node --check client.js && node --check src/config.js && node --check src/mcp-bridge.js && node --check src/policy.js && node --check src/status.js && node --check src/tool-registry.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "browserpilot",
+    "mcp",
+    "browser-automation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Puxora/dsh-browserpilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Puxora/dsh-browserpilot/issues"
+  },
+  "homepage": "https://github.com/Puxora/dsh-browserpilot#readme",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-plugins",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ]
+    }
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "schemastery": "^3.18.0"
+  }
+}
