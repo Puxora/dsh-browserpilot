@@ -135,16 +135,27 @@ DSH 插件通过 `npx` 启动 BrowserPilot MCP。若只卸载 BrowserPilot npm �
 
 ## DSH 设置与权限
 
-在 **设置 → BrowserPilot** 中可配置以下策略：
+在 **设置 → BrowserPilot** 中可以编辑 BrowserPilot 的真实全局安全策略。这些值通过 DSH Host 端使用本机 API Token 读写，与 BrowserPilot 管理后台共用 `~/.browserpilot/settings.json`，会影响 Codex、DSH 以及其他 BrowserPilot 客户端：
 
-| 类别 | 默认值 | 作用范围 |
+| 全局策略 | 默认值 | 作用范围 |
+| --- | --- | --- |
+| 自动化写操作 | 每次询问审批 | 点击、输入、关闭标签页和页面脚本等写操作。 |
+| 页面 JavaScript | 关闭 | 是否允许 Agent 在网页上下文执行 JavaScript。 |
+| 文件下载 | 每次询问 | BrowserPilot 已接管标签页触发的下载。 |
+| 文件上传 | 每次询问 | 是否允许打开网页文件选择器。 |
+
+特定域名例外规则仍在 BrowserPilot 管理后台维护，DSH 更新上述字段时不会覆盖这些规则。全局策略由 daemon 最终执行；DSH 页面不会接触 API Token。
+
+DSH 另外保留一层只对当前 DSH 生效的限制：
+
+| DSH 本地策略 | 默认值 | 作用范围 |
 | --- | --- | --- |
 | 启用浏览器工具 | 开启 | 关闭后，DSH 不会调用任何 BrowserPilot 工具。 |
-| 只读操作 | 允许 | 标签页、页面状态、DOM 观察和截图。 |
-| 网页交互 | 由 BrowserPilot 确认 | 导航、点击、输入、按键、滚动和选择。 |
-| 敏感操作 | 禁止 | 上传、下载、脚本、Cookie 与凭据相关操作。 |
+| 只读操作 | 遵循全局策略 | 可设置为“DSH 内禁止”。 |
+| 网页交互 | 遵循全局策略 | 可设置为“DSH 内禁止”。 |
+| 敏感操作 | DSH 内禁止 | 上传、下载、脚本、Cookie 与凭据相关操作。 |
 
-「由 BrowserPilot 确认」不会绕过安全流程：最终授权仍由本机 BrowserPilot 扩展完成。关闭总开关或将类别设置为「禁止」时，DSH 会在 MCP 调用前阻断请求。
+DSH 本地策略只能进一步限制，不能放宽 BrowserPilot 全局策略。插件每 3 秒同步一次全局值；daemon 不可用时，全局控件会变为只读。
 
 ## 管理面板
 
@@ -165,10 +176,10 @@ DSH Agent
    │                                               │
    │                                               └── Chrome 扩展 ── Chrome 标签页
    │
-   └── BrowserPilot DSH Web 设置页 ── 权限校验 / 管理面板入口
+   └── BrowserPilot DSH Web 设置页 ── DSH settings scope ── Host 全局策略同步
 ```
 
-DSH 加载时，插件立即注册设置页与 `browserpilot_status`；随后才在后台启动 MCP、握手并读取工具列表。因此 DSH Web 不会等待 `npx`、daemon 启动或 MCP 握手完成才开始监听。连接握手默认超时为 12 秒，单次工具调用默认超时为 60 秒。
+DSH 加载时，插件立即注册设置页与 `browserpilot_status`；随后在后台启动 MCP、握手、读取工具列表，并通过 BrowserPilot 的认证设置接口同步全局策略。因此 DSH Web 不会等待 `npx`、daemon 启动或 MCP 握手完成才开始监听。连接握手默认超时为 12 秒，单次工具调用默认超时为 60 秒。
 
 ## 常见问题
 

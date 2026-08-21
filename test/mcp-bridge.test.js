@@ -16,7 +16,13 @@ test('concurrent connection requests share one MCP handshake', async () => {
   assert.equal(fake.connectCalls(), 1)
   assert.deepEqual(firstTools, fake.tools)
   assert.deepEqual(secondTools, fake.tools)
-  assert.deepEqual(bridge.snapshot, { state: 'connected', toolCount: 1, lastError: undefined })
+  assert.deepEqual(bridge.snapshot, {
+    state: 'connected',
+    toolCount: 1,
+    lastError: undefined,
+    runtime: { command: 'browserpilot', args: ['mcp'], cwd: '' },
+    serverInfo: { name: 'browser-pilot', version: '1.1.5' },
+  })
 })
 
 test('a stalled MCP handshake times out and closes the child client', async () => {
@@ -66,6 +72,10 @@ function createFakeDependencies({ connect }) {
 
     async listTools() {
       return { tools }
+    }
+
+    getServerVersion() {
+      return { name: 'browser-pilot', version: '1.1.5' }
     }
 
     async close() {

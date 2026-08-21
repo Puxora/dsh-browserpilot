@@ -17,7 +17,12 @@ test('normalizeSettings rejects unknown access modes', () => {
   }), {
     enabled: false,
     readAccess: 'deny',
-    interactionAccess: 'ask',
-    sensitiveAccess: 'ask',
+    interactionAccess: 'allow',
+    sensitiveAccess: 'allow',
+    globalSettingsAvailable: false,
+    globalApproval: 'always',
+    globalCdpEnabled: false,
+    globalDownload: 'ask',
+    globalUpload: 'ask',
   })
 })
