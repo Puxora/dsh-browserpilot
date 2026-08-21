@@ -13,26 +13,49 @@ window.__ModuleLoader__.load({
       disabled: '当前账号没有修改这些设置的权限。',
       enabled: '启用浏览器工具',
       enabledDesc: '关闭后，DSH 不会调用任何 BrowserPilot 浏览器工具。',
-      permissionTitle: '权限策略',
-      permissionHint: '这些策略在每一次工具调用前校验。',
+      localPermissionTitle: 'DSH 额外限制',
+      localPermissionHint: '这里只能进一步限制 DSH，不会放宽 BrowserPilot 全局安全策略。',
       read: '只读操作',
       readDesc: '标签页、页面状态、DOM 观察和截图，不改动网页内容。',
       interaction: '网页交互',
       interactionDesc: '导航、点击、输入、按键、滚动和选项选择。',
       sensitive: '敏感操作',
       sensitiveDesc: '上传、下载、脚本、Cookie 和凭据相关操作。',
-      allow: '允许',
-      ask: '由 BrowserPilot 确认',
-      deny: '禁止',
+      inherit: '遵循全局策略',
+      deny: 'DSH 内禁止',
+      globalTitle: 'BrowserPilot 全局安全策略',
+      globalHint: '修改后写入本机 BrowserPilot，并影响 Codex、DSH 及其他 BrowserPilot 客户端。',
+      globalUnavailable: '暂时无法连接 BrowserPilot 全局设置，已禁用修改。请确认 daemon 正在运行。',
+      approval: '自动化写操作',
+      approvalDesc: '控制点击、输入、关闭标签页和页面脚本等写操作是否需要审批。',
+      approvalAlways: '每次询问审批',
+      approvalNone: '直接运行不审批',
+      cdp: '页面 JavaScript 开发者权限',
+      cdpDesc: '允许 Agent 在网页上下文执行 JavaScript；仅应在受信任站点开启。',
+      download: '文件下载权限',
+      downloadDesc: '控制 BrowserPilot 已接管标签页触发的下载。',
+      upload: '文件上传权限',
+      uploadDesc: '控制 BrowserPilot 是否允许打开网页文件选择器。',
+      transferAlways: '始终允许',
+      transferAsk: '每次询问',
+      transferNone: '严格禁止',
       safetyTitle: '安全与连接',
-      safetyBody: '选择“由 BrowserPilot 确认”时，最终确认会交给本机浏览器扩展；令牌和浏览器凭据不会存入 DSH。',
+      safetyBody: '全局权限由 BrowserPilot daemon 统一执行；API Token 和浏览器凭据只在 DSH Host 端使用，不会发送到此页面。',
       statusBody: '需要排查连接时，在聊天中调用 browserpilot_status；它会返回连接状态和已注册工具数量。',
       openDashboard: '打开管理面板',
     }
-    const MODES = [
-      { value: 'allow', label: COPY.allow },
-      { value: 'ask', label: COPY.ask },
+    const LOCAL_MODES = [
+      { value: 'allow', label: COPY.inherit },
       { value: 'deny', label: COPY.deny },
+    ]
+    const APPROVAL_MODES = [
+      { value: 'always', label: COPY.approvalAlways },
+      { value: 'none', label: COPY.approvalNone },
+    ]
+    const TRANSFER_MODES = [
+      { value: 'always', label: COPY.transferAlways },
+      { value: 'ask', label: COPY.transferAsk },
+      { value: 'none', label: COPY.transferNone },
     ]
 
     function BrowserPilotSettings({ scope }) {
@@ -46,6 +69,7 @@ window.__ModuleLoader__.load({
       if (busy) return h('p', { style: mutedStyle() }, COPY.loading)
 
       const enabled = value.enabled !== false
+      const globalAvailable = value.globalSettingsAvailable === true
       return h('div', { style: pageStyle() },
         h('header', { style: headerStyle() },
           h('h2', { style: titleStyle() }, COPY.title),
@@ -64,12 +88,38 @@ window.__ModuleLoader__.load({
         ),
         h('section', { style: permissionsPanelStyle() },
           h('div', { style: sectionHeaderStyle() },
-            h('strong', { style: sectionTitleStyle() }, COPY.permissionTitle),
-            h('span', { style: mutedStyle() }, COPY.permissionHint),
+            h('strong', { style: sectionTitleStyle() }, COPY.globalTitle),
+            h('span', { style: mutedStyle() }, COPY.globalHint),
           ),
-          h(PermissionField, { scope, writable, field: 'readAccess', value: modeValue(value.readAccess, 'allow'), label: COPY.read, description: COPY.readDesc }),
-          h(PermissionField, { scope, writable, field: 'interactionAccess', value: modeValue(value.interactionAccess, 'ask'), label: COPY.interaction, description: COPY.interactionDesc }),
-          h(PermissionField, { scope, writable, field: 'sensitiveAccess', value: modeValue(value.sensitiveAccess, 'deny'), label: COPY.sensitive, description: COPY.sensitiveDesc, last: true }),
+          !globalAvailable ? h('p', { style: syncNoticeStyle() }, COPY.globalUnavailable) : null,
+          h(PermissionField, {
+            scope, writable: writable && globalAvailable, field: 'globalApproval',
+            value: enumValue(value.globalApproval, ['always', 'none'], 'always'), modes: APPROVAL_MODES,
+            label: COPY.approval, description: COPY.approvalDesc,
+          }),
+          h(BooleanField, {
+            scope, writable: writable && globalAvailable, field: 'globalCdpEnabled',
+            value: value.globalCdpEnabled === true, label: COPY.cdp, description: COPY.cdpDesc,
+          }),
+          h(PermissionField, {
+            scope, writable: writable && globalAvailable, field: 'globalDownload',
+            value: enumValue(value.globalDownload, ['always', 'ask', 'none'], 'ask'), modes: TRANSFER_MODES,
+            label: COPY.download, description: COPY.downloadDesc,
+          }),
+          h(PermissionField, {
+            scope, writable: writable && globalAvailable, field: 'globalUpload',
+            value: enumValue(value.globalUpload, ['always', 'ask', 'none'], 'ask'), modes: TRANSFER_MODES,
+            label: COPY.upload, description: COPY.uploadDesc, last: true,
+          }),
+        ),
+        h('section', { style: permissionsPanelStyle() },
+          h('div', { style: sectionHeaderStyle() },
+            h('strong', { style: sectionTitleStyle() }, COPY.localPermissionTitle),
+            h('span', { style: mutedStyle() }, COPY.localPermissionHint),
+          ),
+          h(PermissionField, { scope, writable, field: 'readAccess', value: localModeValue(value.readAccess), modes: LOCAL_MODES, label: COPY.read, description: COPY.readDesc }),
+          h(PermissionField, { scope, writable, field: 'interactionAccess', value: localModeValue(value.interactionAccess), modes: LOCAL_MODES, label: COPY.interaction, description: COPY.interactionDesc }),
+          h(PermissionField, { scope, writable, field: 'sensitiveAccess', value: localModeValue(value.sensitiveAccess), modes: LOCAL_MODES, label: COPY.sensitive, description: COPY.sensitiveDesc, last: true }),
         ),
         h('section', { style: guidanceStyle() },
           h('strong', { style: sectionTitleStyle() }, COPY.safetyTitle),
@@ -82,7 +132,7 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function PermissionField({ scope, writable, field, value, label, description, last = false }) {
+    function PermissionField({ scope, writable, field, value, modes, label, description, last = false }) {
       return h('label', { style: permissionRowStyle(last), 'data-settings-item': field },
         h('span', { style: permissionCopyStyle() },
           h('strong', { style: sectionTitleStyle() }, label),
@@ -91,12 +141,29 @@ window.__ModuleLoader__.load({
         h('select', {
           value, disabled: !writable, style: selectStyle(),
           onChange: event => void scope.set(field, event.target.value),
-        }, MODES.map(mode => h('option', { key: mode.value, value: mode.value }, mode.label))),
+        }, modes.map(mode => h('option', { key: mode.value, value: mode.value }, mode.label))),
       )
     }
 
-    function modeValue(value, fallback) {
-      return ['allow', 'ask', 'deny'].includes(value) ? value : fallback
+    function BooleanField({ scope, writable, field, value, label, description }) {
+      return h('label', { style: permissionRowStyle(false), 'data-settings-item': field },
+        h('span', { style: permissionCopyStyle() },
+          h('strong', { style: sectionTitleStyle() }, label),
+          h('small', { style: mutedStyle({ marginTop: '4px' }) }, description),
+        ),
+        h('input', {
+          type: 'checkbox', checked: value, disabled: !writable, 'aria-label': label,
+          style: toggleStyle(), onChange: event => void scope.set(field, event.target.checked),
+        }),
+      )
+    }
+
+    function localModeValue(value) {
+      return value === 'deny' ? 'deny' : 'allow'
+    }
+
+    function enumValue(value, allowed, fallback) {
+      return allowed.includes(value) ? value : fallback
     }
 
     function pageStyle() {
@@ -170,6 +237,13 @@ window.__ModuleLoader__.load({
 
     function noticeStyle() {
       return { margin: 0, color: 'var(--dsw-alias-label-secondary)' }
+    }
+
+    function syncNoticeStyle() {
+      return {
+        margin: '0 18px 8px', padding: '10px 12px', borderRadius: '9px',
+        color: 'var(--dsw-alias-label-secondary)', background: 'var(--dsw-alias-bg-layer-2)', lineHeight: 1.5,
+      }
     }
 
     function toggleStyle() {

@@ -135,16 +135,27 @@ The DSH plugin starts BrowserPilot MCP through `npx`. Removing only the BrowserP
 
 ## DSH settings and permissions
 
-Configure these options in **Settings → BrowserPilot**:
+**Settings → BrowserPilot** edits BrowserPilot's real global security policy. The DSH Host reads and writes these values with the local API Token. They share `~/.browserpilot/settings.json` with the BrowserPilot dashboard and affect Codex, DSH, and every other BrowserPilot client:
 
-| Category | Default | Scope |
+| Global policy | Default | Scope |
+| --- | --- | --- |
+| Automated writes | Ask every time | Clicks, typing, closing tabs, page scripts, and other writes. |
+| Page JavaScript | Off | Whether agents may execute JavaScript in the page context. |
+| Downloads | Ask every time | Downloads triggered by BrowserPilot-controlled tabs. |
+| Uploads | Ask every time | Whether the web file picker may be opened. |
+
+Site-specific exceptions remain in the BrowserPilot dashboard; updating the fields above does not overwrite those rules. The daemon enforces the final policy, and the DSH browser page never receives the API Token.
+
+DSH also keeps an additional restriction layer that affects only this DSH installation:
+
+| DSH-local policy | Default | Scope |
 | --- | --- | --- |
 | Enable browser tools | On | When off, DSH does not call BrowserPilot tools. |
-| Read-only operations | Allow | Tabs, page state, DOM observation, and screenshots. |
-| Web interaction | Ask BrowserPilot | Navigation, clicks, typing, key presses, scrolling, and selections. |
-| Sensitive operations | Deny | Uploads, downloads, scripts, cookies, and credential-related operations. |
+| Read-only operations | Follow global policy | May be changed to **Deny in DSH**. |
+| Web interaction | Follow global policy | May be changed to **Deny in DSH**. |
+| Sensitive operations | Deny in DSH | Uploads, downloads, scripts, cookies, and credential-related operations. |
 
-**Ask BrowserPilot** never bypasses the safety flow. Final approval still occurs in the local BrowserPilot extension. Disabling the master switch or selecting **Deny** blocks the request before an MCP call is made.
+DSH-local policy can only restrict the global policy, never relax it. The plugin synchronizes global values every three seconds; global controls become read-only while the daemon is unavailable.
 
 ## Dashboard
 
@@ -165,10 +176,10 @@ DSH Agent
    │                                               │
    │                                               └── Chrome extension ── Chrome tabs
    │
-   └── BrowserPilot DSH Web settings ── permission checks / dashboard entry point
+   └── BrowserPilot DSH Web settings ── DSH settings scope ── Host global-policy sync
 ```
 
-At DSH startup, the plugin immediately registers its settings page and `browserpilot_status`. MCP startup, handshake, and tool discovery then run in the background. DSH Web does not wait for `npx`, daemon startup, or MCP handshake before it begins listening. The connection handshake defaults to 12 seconds; individual tool calls default to 60 seconds.
+At DSH startup, the plugin immediately registers its settings page and `browserpilot_status`. MCP startup, handshake, tool discovery, and authenticated global-policy synchronization then run in the background. DSH Web does not wait for `npx`, daemon startup, or MCP handshake before it begins listening. The connection handshake defaults to 12 seconds; individual tool calls default to 60 seconds.
 
 ## Troubleshooting
 

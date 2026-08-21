@@ -14,3 +14,27 @@ test('status output includes a concrete error message', () => {
     { state: 'error', toolCount: 0, lastError: 'daemon unavailable' },
   )
 })
+
+test('status output identifies the concrete MCP command and server version', () => {
+  assert.deepEqual(
+    serializeBrowserPilotStatus({
+      state: 'connected',
+      runtime: {
+        command: 'D:/Software/nodejs/node.exe',
+        args: ['G:/github/BrowserPilot/orchestrator/bin/cli.js', 'mcp'],
+        cwd: 'G:/github/BrowserPilot',
+      },
+      serverInfo: { name: 'browser-pilot', version: '1.1.5' },
+    }, 40),
+    {
+      state: 'connected',
+      toolCount: 40,
+      runtime: {
+        command: 'D:/Software/nodejs/node.exe',
+        args: ['G:/github/BrowserPilot/orchestrator/bin/cli.js', 'mcp'],
+        cwd: 'G:/github/BrowserPilot',
+      },
+      serverInfo: { name: 'browser-pilot', version: '1.1.5' },
+    },
+  )
+})

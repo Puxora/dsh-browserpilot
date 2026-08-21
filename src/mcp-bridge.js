@@ -9,6 +9,7 @@ export class BrowserPilotMcpBridge {
   #tools = []
   #state = 'idle'
   #lastError
+  #serverInfo
   #connectTask
 
   constructor(runtimeConfig, dependencies = { Client, StdioClientTransport }) {
@@ -21,6 +22,8 @@ export class BrowserPilotMcpBridge {
       state: this.#state,
       toolCount: this.#tools.length,
       lastError: this.#lastError,
+      runtime: publicRuntimeConfig(this.#runtimeConfig),
+      serverInfo: this.#serverInfo,
     }
   }
 
@@ -40,6 +43,7 @@ export class BrowserPilotMcpBridge {
   async #connectOnce() {
     this.#state = 'connecting'
     this.#lastError = undefined
+    this.#serverInfo = undefined
     let client
     try {
       const transport = new this.#dependencies.StdioClientTransport({
@@ -49,7 +53,7 @@ export class BrowserPilotMcpBridge {
         cwd: this.#runtimeConfig.cwd || undefined,
       })
       client = new this.#dependencies.Client(
-        { name: '@puxora/dsh-browserpilot', version: '0.1.4' },
+        { name: '@puxora/dsh-browserpilot', version: '0.1.6' },
         { capabilities: {} },
       )
       this.#client = client
@@ -57,6 +61,7 @@ export class BrowserPilotMcpBridge {
       await withTimeout(client.connect(transport), this.#runtimeConfig.connectTimeoutMs, '连接 BrowserPilot MCP')
       const result = await withTimeout(client.listTools(), this.#runtimeConfig.connectTimeoutMs, '读取 BrowserPilot 工具列表')
       this.#tools = Array.isArray(result.tools) ? result.tools : []
+      this.#serverInfo = normalizeServerInfo(client.getServerVersion?.())
       this.#state = 'connected'
       return this.#tools
     } catch (error) {
@@ -83,9 +88,26 @@ export class BrowserPilotMcpBridge {
     this.#client = undefined
     this.#transport = undefined
     this.#tools = []
+    this.#serverInfo = undefined
     if (this.#state !== 'error') this.#state = 'idle'
     if (client !== undefined) await client.close().catch(() => undefined)
   }
+}
+
+function publicRuntimeConfig(config) {
+  return {
+    command: config.command,
+    args: [...config.args],
+    cwd: config.cwd || '',
+  }
+}
+
+function normalizeServerInfo(value) {
+  if (typeof value !== 'object' || value === null) return undefined
+  const name = typeof value.name === 'string' ? value.name : undefined
+  const version = typeof value.version === 'string' ? value.version : undefined
+  if (name === undefined && version === undefined) return undefined
+  return { ...(name === undefined ? {} : { name }), ...(version === undefined ? {} : { version }) }
 }
 
 function withTimeout(promise, timeoutMs, action) {

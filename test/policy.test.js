@@ -11,9 +11,15 @@ test('tool names are classified conservatively', () => {
 
 test('disabled or denied access stops tool calls before MCP', () => {
   assert.equal(decideToolAccess('browser_click', {
-    enabled: false, readAccess: 'allow', interactionAccess: 'ask', sensitiveAccess: 'deny',
+    enabled: false, readAccess: 'allow', interactionAccess: 'allow', sensitiveAccess: 'deny',
   }).allow, false)
   assert.equal(decideToolAccess('browser_upload_file', {
-    enabled: true, readAccess: 'allow', interactionAccess: 'ask', sensitiveAccess: 'deny',
+    enabled: true, readAccess: 'allow', interactionAccess: 'allow', sensitiveAccess: 'deny',
   }).allow, false)
+})
+
+test('allowed DSH categories defer final authorization to BrowserPilot', () => {
+  assert.deepEqual(decideToolAccess('browser_click', {
+    enabled: true, readAccess: 'allow', interactionAccess: 'allow', sensitiveAccess: 'deny',
+  }), { allow: true, category: 'interaction', mode: 'allow' })
 })

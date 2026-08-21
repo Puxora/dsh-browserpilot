@@ -1,5 +1,7 @@
 import { DEFAULT_SETTINGS, SETTINGS_NAMESPACE, normalizeSettings, resolveRuntimeConfig } from './src/config.js'
 import { BrowserPilotMcpBridge } from './src/mcp-bridge.js'
+import { BrowserPilotGlobalPolicyClient } from './src/global-policy.js'
+import { BrowserPilotPolicySynchronizer } from './src/policy-sync.js'
 import { serializeBrowserPilotStatus } from './src/status.js'
 import { BrowserPilotToolRegistry } from './src/tool-registry.js'
 import Schema from 'schemastery'
@@ -9,13 +11,26 @@ export const inject = ['settings', 'tools']
 
 export function apply(ctx, config = {}) {
   const settingsScope = registerSettings(ctx, config)
-  const bridge = new BrowserPilotMcpBridge(resolveRuntimeConfig(config))
+  const runtimeConfig = resolveRuntimeConfig(config)
+  const bridge = new BrowserPilotMcpBridge(runtimeConfig)
   const registry = new BrowserPilotToolRegistry(ctx, bridge, settingsScope)
+  const policySynchronizer = settingsScope
+    ? new BrowserPilotPolicySynchronizer(
+      settingsScope,
+      new BrowserPilotGlobalPolicyClient(runtimeConfig),
+      {
+        intervalMs: runtimeConfig.policySyncIntervalMs,
+        onError: error => report(ctx, '全局权限同步失败', error),
+      },
+    )
+    : undefined
   const disposeStatus = ctx.tools.register(createStatusTool(bridge, registry, () => connect(bridge, registry, ctx)))
 
   const cancelBackgroundConnect = scheduleBackgroundConnect(() => connect(bridge, registry, ctx))
+  policySynchronizer?.start()
   ctx.effect(() => () => {
     cancelBackgroundConnect()
+    policySynchronizer?.stop()
     disposeStatus()
     registry.dispose()
     void bridge.dispose()
@@ -33,6 +48,11 @@ function registerSettings(ctx, config) {
       readAccess: Schema.union(['allow', 'ask', 'deny'].map(value => Schema.const(value))).default(base.readAccess),
       interactionAccess: Schema.union(['allow', 'ask', 'deny'].map(value => Schema.const(value))).default(base.interactionAccess),
       sensitiveAccess: Schema.union(['allow', 'ask', 'deny'].map(value => Schema.const(value))).default(base.sensitiveAccess),
+      globalSettingsAvailable: Schema.boolean().default(base.globalSettingsAvailable),
+      globalApproval: Schema.union(['always', 'none'].map(value => Schema.const(value))).default(base.globalApproval),
+      globalCdpEnabled: Schema.boolean().default(base.globalCdpEnabled),
+      globalDownload: Schema.union(['always', 'ask', 'none'].map(value => Schema.const(value))).default(base.globalDownload),
+      globalUpload: Schema.union(['always', 'ask', 'none'].map(value => Schema.const(value))).default(base.globalUpload),
     }), { base })
   } catch (error) {
     report(ctx, 'settings 注册失败', error)

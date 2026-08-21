@@ -30,7 +30,6 @@ export function decideToolAccess(rawName, settings) {
     allow: true,
     category,
     mode,
-    requiresBrowserPilotApproval: mode === 'ask',
   }
 }
 
